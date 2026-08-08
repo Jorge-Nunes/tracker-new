@@ -1,0 +1,14 @@
+# Repo tracker-new: SOMENTE tarkan-desktop-src, tarkan-api e AGENTS.md
+/*
+!/tarkan-desktop-src/
+!/tarkan-api/
+!/AGENTS.md
+!/.gitignore
+
+# Reforço de segurança (nunca devem subir)
+*.sql
+.env
+.env.*
+config.json
+*.log
+*.key

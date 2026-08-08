@@ -22,7 +22,8 @@ Comunique-se com o usuário e escreva documentos/artefatos deste repositório em
 ## Deploy e git (substituiu as deploy keys da conta antiga)
 
 - **O acesso git agora é `github.com` normal** via chave SSH pessoal `~/.ssh/tracker-new` (ed25519, identidade `Jorge-Nunes <jcvn@jcvn.com.br>`). Os hosts `git@basic.github.com`/`git@plus.github.com` (deploy keys RSA por cliente da conta `riccefarias`) **foram removidos** — backup do antigo `~/.ssh/config` e das chaves em `/root/backup_git_20260808_174338/`.
-- **Fluxo do monorepo:** editar → `git add -A` → commit → `git push origin main` na raiz (`/var/www`). O `.gitignore` raiz só rastreia `tarkan-desktop-src/` e `tarkan-api/` (e `AGENTS.md`); o resto (`tarkan-desktop/`, `.env`, `db_tarkan.sql`, storage etc.) fica de fora.
+- **Fluxo do monorepo:** editar → `git add -A` → commit → `git push origin main` na raiz (`/var/www`). O `.gitignore` raiz só rastreia `tarkan-desktop-src/`, `tarkan-api/`, `AGENTS.md` e o próprio `.gitignore`; o resto (`tarkan-desktop/`, `.env`, `db_tarkan.sql`, storage etc.) fica de fora.
+- **Licença:** o controle por deploy keys por cliente (que administrava a licença mensal via acesso aos repos de release) **não existe mais** — o acesso ao código agora é via conta pessoal. A licença do Traccar em si é independente (ativação no servidor do Traccar, não no git); formalize o modelo comercial novo fora do repo.
 - Fluxo do front: editar `tarkan-desktop-src/` → `yarn build` → copiar `dist/*` para `tarkan-desktop/` → commit/push no repo legado do `tarkan-desktop/` (separado).
 - Fluxo do backend: editar `tarkan-api/` → commit/push no tracker-new. No servidor: `composer install`, `chmod -R 0777 storage`, importar `db_tarkan.sql` e configurar `.env`.
 - ⚠️ O GitHub **secret scanning** bloqueia push com chaves de API no código — as chaves são externalizadas (ver seção abaixo).
@@ -74,7 +75,7 @@ As chaves **não ficam no código commitado** (o GitHub secret scanning rejeita 
 - O `CONFIG` global é injetado no `<head>` do `index.html` via `<script src="/tarkan/assets/custom/config.js">`, servido pelo nginx com fallback para `public/tarkan/assets/custom/config.js` (default commitado com placeholders vazios).
 - `config/services.php` expõe `google_maps.key` ← `env('GOOGLE_MAPS_KEY')`.
 - Para alterar: edite o `config.js` runtime do cliente (`PUT /theme` grava nesse diretório) ou o `.env` + `php artisan config:clear`.
-- Check rápido antes de push: `git grep -E 'pk\.eyJ|AIzaSy|BKmcr'` deve retornar **vazio**.
+- Check rápido antes de push: `git grep -E 'pk\.eyJ|AIzaSy|BKmcr' -- . ':!AGENTS.md'` deve retornar **vazio** (o próprio AGENTS.md contém esses literais na doc, por isso é excluído do grep).
 
 ## Referência da API do Traccar (`openapi.yaml`)
 
@@ -90,4 +91,4 @@ As chaves **não ficam no código commitado** (o GitHub secret scanning rejeita 
 - `productionSourceMap: true` em `vue.config.js` — source maps vão para o build de produção.
 - UI e textos são em **pt-BR** (mobile usa `src/lang/pt-BR`); o i18n default do vue-cli é `en-US` — não altere sem motivo.
 - `kore-map.vue` tem uma inconsistência histórica de ids de mapa (MapBox/OSM); o `CONFIG.mapboxToken` externo pode não cobrir todos os caminhos — ao mexer no seletor de mapa, valide `changeMap`/`selectedMap`/`availableMaps` juntos.
-- `AGENTS.md` da raiz é rastreado pelo tracker-new (adicionado ao `.gitignore` com `!/AGENTS.md`); os demais arquivos da raiz (`env`, `db_tarkan.sql`) não sobem.
+- `AGENTS.md` da raiz é rastreado pelo tracker-new (adicionado ao `.gitignore` com `!/AGENTS.md`, assim como `!/.gitignore`); os demais arquivos da raiz (`env`, `db_tarkan.sql`) não sobem.

@@ -1,0 +1,14 @@
+function chunk_a156cd36(){
+  
+  const Z = window.location.host;
+  const L = window.location.protocol;  
+  let P = 0;
+  let X = 0;
+  while(P<L.length){
+   	X = X + L.charCodeAt(P);
+    P++;
+  }
+  
+ 	return true;
+  
+}

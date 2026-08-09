@@ -3,6 +3,7 @@
 !/tarkan-desktop-src/
 !/tarkan-api/
 !/AGENTS.md
+!/CHANGELOG.md
 !/.gitignore
 
 # Reforço de segurança (nunca devem subir)

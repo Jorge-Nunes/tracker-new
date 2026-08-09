@@ -410,6 +410,7 @@ export default {
             const device = state.deviceList[p.deviceId];
             if(device && device.icon){
                 // eslint-disable-next-line no-undef
+                if(typeof p.latitude !== 'number' || typeof p.longitude !== 'number') { return; }
                 const latlng = L.latLng(p.latitude,p.longitude);
 
                 device.icon.options.img.hide = false;
@@ -441,6 +442,7 @@ export default {
                 const device = state.deviceList[p.deviceId];
                 if(device && device.icon){
                     // eslint-disable-next-line no-undef
+                    if(typeof p.latitude !== 'number' || typeof p.longitude !== 'number') { return; }
                     const latlng = L.latLng(p.latitude,p.longitude);
 
                     device.icon.options.img.hide = false;

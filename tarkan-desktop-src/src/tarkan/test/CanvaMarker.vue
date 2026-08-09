@@ -762,7 +762,7 @@ export default {
         car = 'default';
       }
 
-      const entity = leafletRef.value.find((e) => { e.options.id === d.id });
+      const entity = leafletRef.value.find((e) => e.options.id === d.id);
 
 
       if (entity) {

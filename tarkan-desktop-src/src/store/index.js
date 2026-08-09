@@ -277,8 +277,9 @@ const store = createStore({
         async loadUserData(context,waitDevice){
 
 
-            await Promise.all([context.dispatch('devices/positions'),
-                                context.dispatch('devices/load',waitDevice)]);
+            // Positions DEVE ser carregado ANTES dos devices para que markers tenham posição
+            await context.dispatch('devices/positions');
+            await context.dispatch('devices/load',waitDevice);
 
             context.dispatch('devices/connectWs');
 

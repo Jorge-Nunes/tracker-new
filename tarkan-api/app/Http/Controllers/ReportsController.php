@@ -2,8 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\UserLog;
-use App\Tarkan\traccarConnector;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -33,9 +31,9 @@ class ReportsController extends Controller{
     }
 
     public function getSummary(Request $request){
-        $traccar = new traccarConnector($request);
+        $traccar = self::traccar($request);
 
-        $resume = $traccar->getSummary($_SERVER['QUERY_STRING'],['h' => ['Cookie' => $request->headers->get('cookie')]]);
+        $resume = $traccar->getSummary($_SERVER['QUERY_STRING'], self::cookieAuth($request));
 
         if($request->header('Accept')=='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'){
             if($resume->status()===200) {
@@ -51,14 +49,14 @@ class ReportsController extends Controller{
                 $_devices = [];
                 $_trips = [];
 
-                $devices = $traccar->getDevice($params['deviceId'],['h' => ['Cookie' => $request->headers->get('cookie')]]);
+                $devices = $traccar->getDevice($params['deviceId'], self::cookieAuth($request));
                 foreach($devices->json() as $device){
                     $_devices[$device['id']] = $device;
                     $_trips[$device['id']] = [];
                 }
 
 
-                $trips = $traccar->getTrips($_SERVER['QUERY_STRING'],['h' => ['Cookie' => $request->headers->get('cookie')]]);
+                $trips = $traccar->getTrips($_SERVER['QUERY_STRING'], self::cookieAuth($request));
 
                 foreach($trips->json() as $trip){
                     if(!IsSet($_trips[$trip['deviceId']])){

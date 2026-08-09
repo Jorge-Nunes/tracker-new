@@ -159,6 +159,7 @@ const messages = {
             confirmDelete: 'Você está deletando uma notificação de "%type%", deseja continuar?',
             saving: 'Salvando sua notificação',
             saved: 'Sua notificação foi salva com sucesso.',
+            channelRequired: 'Selecione ao menos um canal de notificação.',
             linkToDevice: 'Atribuindo ao dispositivo "%name%"',
             linkToGroup: 'Atribuindo ao grupo "%name%"',
             linkToUser: 'Atribuindo ao usuário "%name%"',

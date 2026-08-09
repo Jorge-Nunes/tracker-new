@@ -1,4 +1,5 @@
 const BundleAnalyzerPlugin = require('webpack-bundle-analyzer').BundleAnalyzerPlugin;
+const analyzerMode = process.env.ANALYZER_MODE || 'server';
 
 
 
@@ -33,7 +34,7 @@ module.exports = {
 
     configureWebpack:{
         plugins: [
-            new BundleAnalyzerPlugin()
+            new BundleAnalyzerPlugin({ analyzerMode, openAnalyzer: false })
         ],
         resolve: {
             alias: {

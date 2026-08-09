@@ -193,7 +193,17 @@ const parseDevice = (userAgent)=>{
 
 const parseObject = (log,kk=0)=>{
 
-  const objectType = Object.keys(log.object)[kk];
+  if(!log || !log.object){
+    return 'n/a';
+  }
+
+  const keys = Object.keys(log.object);
+
+  if(!keys[kk]){
+    return 'n/a';
+  }
+
+  const objectType = keys[kk];
 
   if(objectType==='userId'){
     return 'Usuário';
@@ -213,6 +223,11 @@ const parseObject = (log,kk=0)=>{
 }
 
 const parseLog = (log)=>{
+
+  if(!log){
+    return '';
+  }
+
   if(log.code===101){
       if(log.status===200){
         return 'tentativa de login realizada com sucesso.';
@@ -256,22 +271,23 @@ const parseLog = (log)=>{
       return 'tentativa de criar acesso de motorista falhou.';
     }
   }else if(log.code===201){
+    const command = log.command || {};
     if(log.status===202){
-      if(log.command.attributes && log.command.attributes['tarkan.changeNative']){
-        return parseObject(log,0)+' enviado o comando "'+KT('actions.'+log.command.attributes['tarkan.changeNative'])+'"';
-      }else if(log.command.description){
-        return parseObject(log,0)+' enviado o comando "'+log.command.description+'"';
+      if(command.attributes && command.attributes['tarkan.changeNative']){
+        return parseObject(log,0)+' enviado o comando "'+KT('actions.'+command.attributes['tarkan.changeNative'])+'"';
+      }else if(command.description){
+        return parseObject(log,0)+' enviado o comando "'+command.description+'"';
       }else {
-        return parseObject(log,0)+' enviado o comando "' + KT('actions.' + log.command.type) + '"' + ((log.command.attributes && log.command.attributes.data) ? ' -> DATA: ' + log.command.attributes.data : '');
+        return parseObject(log,0)+' enviado o comando "' + KT('actions.' + command.type) + '"' + ((command.attributes && command.attributes.data) ? ' -> DATA: ' + command.attributes.data : '');
       }
     }else if(log.status===200 && log.command){
 
-      if(log.command.attributes && log.command.attributes['tarkan.changeNative']){
-        return parseObject(log,0)+' enviado o comando "'+KT('actions.'+log.command.attributes['tarkan.changeNative'])+'"';
-      }else if(log.command.description!=="Novo..."){
-        return parseObject(log,0)+' enviado o comando "'+log.command.description+'"';
+      if(command.attributes && command.attributes['tarkan.changeNative']){
+        return parseObject(log,0)+' enviado o comando "'+KT('actions.'+command.attributes['tarkan.changeNative'])+'"';
+      }else if(command.description!=="Novo..."){
+        return parseObject(log,0)+' enviado o comando "'+command.description+'"';
       }else {
-        return parseObject(log,0)+' enviado o comando "' + KT('actions.' + log.command.type) + '"' + ((log.command.attributes && log.command.attributes.data) ? ' -> DATA: ' + log.command.attributes.data : '');
+        return parseObject(log,0)+' enviado o comando "' + KT('actions.' + command.type) + '"' + ((command.attributes && command.attributes.data) ? ' -> DATA: ' + command.attributes.data : '');
       }
 
     }else{
@@ -288,10 +304,11 @@ const parseLog = (log)=>{
       return parseObject(log,0)+' tentativa de editar o veiculo falhou.'
     }
   }else if(log.code === 302){
+    const oldName = (log.old && log.old[0] && log.old[0].name) || 'n/a';
     if(log.status===204){
-      return 'Dispositivo "'+log.old[0].name+'" excluido';
+      return 'Dispositivo "'+oldName+'" excluido';
     }else{
-      return parseObject(log,0)+' tentativa de excluir o dispositivo "'+log.old[0].name+'" falhou.'
+      return parseObject(log,0)+' tentativa de excluir o dispositivo "'+oldName+'" falhou.'
     }
   }else if(log.code === 405){
     if(log.status===200){

@@ -95,6 +95,7 @@ const messages = {
             confirmDelete: 'Estás eliminando una notificación de "%type%", ¿quieres continuar?',
             saving: 'Guardando tu notificación...',
             saved: 'Su notificación se ha guardado con éxito.',
+            channelRequired: 'Seleccione al menos un canal de notificación.',
             linkToDevice: 'Asignando al dispositivo "%name%"',
             linkToGroup: 'Asignando al grupo "%name%"',
             linkToUser: 'Asignando usuario "%name%"',

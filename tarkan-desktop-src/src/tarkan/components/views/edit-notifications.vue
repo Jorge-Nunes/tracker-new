@@ -73,7 +73,7 @@
         :per-page="15"
         v-model="currentPage"
       >
-        <slot v-bind="{ item, index }">
+        <template #default="{ item, index }">
           <div
             class="itm"
             @click="selected = item.id"
@@ -132,7 +132,7 @@
               </template>
             </div>
           </div>
-        </slot>
+        </template>
       </Paginate>
     </div>
   </el-dialog>

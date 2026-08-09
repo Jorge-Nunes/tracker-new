@@ -27,7 +27,7 @@
     "
   >
     <Paginate :items="selected" :per-page="15" v-model="currentPage">
-      <slot v-bind="{ item, index }">
+      <template #default="{ item, index }">
         <div style="display: flex; border-bottom: silver 1px dotted">
           <div style="padding: 7px; flex: 1">{{ item.name }}</div>
           <div
@@ -37,7 +37,7 @@
             <i class="fas fa-minus-square"></i>
           </div>
         </div>
-      </slot>
+      </template>
     </Paginate>
   </div>
 </template>

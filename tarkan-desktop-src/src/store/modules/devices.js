@@ -309,8 +309,14 @@ export default {
             state.deviceList[value.id] = value;
 
 
-            if(typeof L != 'undefined') {
-                value.icon = window.addDevice(value);
+            if(typeof L != 'undefined' && window.addDevice) {
+                try {
+                    value.icon = window.addDevice(value);
+                } catch(err){
+                    // marker pode falhar se o cluster/modelos ainda nao estao prontos;
+                    // o device permanece na lista e o icon e recriado no proximo update
+                    console.error("addDevice marker falhou ("+value.id+"):", err);
+                }
             }
 
 
@@ -324,9 +330,34 @@ export default {
             }
 
             const device = state.deviceList[value.id];
+            if(!device){
+                // device novo chegou via WS sem ter passado pelo addDevice: adiciona
+                state.deviceList[value.id] = value;
+                if(typeof L != 'undefined' && window.addDevice) {
+                    try {
+                        value.icon = window.addDevice(value);
+                    } catch(err){
+                        console.error("updateDevice: addDevice marker falhou ("+value.id+"):", err);
+                    }
+                }
+                return;
+            }
 
-            if(device.status !== value.status){
-                device.icon.updateStatus(value.status);
+            // retry: device que falhou o addDevice na carga inicial (sem icon) tenta de novo
+            if(!device.icon && typeof L != 'undefined' && window.addDevice){
+                try {
+                    device.icon = window.addDevice(device);
+                } catch(err){
+                    console.error("updateDevice: retry addDevice falhou ("+value.id+"):", err);
+                }
+            }
+
+            if(device.status !== value.status && device.icon && device.icon.updateStatus){
+                try {
+                    device.icon.updateStatus(value.status);
+                } catch(err){
+                    console.error("updateStatus falhou ("+value.id+"):", err);
+                }
             }
 
 
@@ -338,7 +369,13 @@ export default {
 
 
                 Object.assign(device,value);
-                device.icon.updateCanva(device);
+                if(device.icon && device.icon.updateCanva){
+                    try {
+                        device.icon.updateCanva(device);
+                    } catch(err){
+                        console.error("updateCanva falhou ("+value.id+"):", err);
+                    }
+                }
             }else{
 
                 Object.assign(device,value);
@@ -442,22 +479,27 @@ export default {
         },
         refreshOneDevice(context,fk){
             const f = context.state.deviceList[fk];
+            if(!f || !f.icon){ return false; }
 
             const statusFilter = context.state.applyFilters.statusFilter;
             const motionFilter = context.state.applyFilters.motionFilter;
             const filterQuery = window.localStorage.getItem("query") || false;
 
+            const safeIcon = {
+                remove: ()=> { try { f.icon.remove(); } catch(e){ /* icon ausente: ignora */ } },
+                addToMap: ()=> { try { f.icon.addToMap(); } catch(e){ /* icon ausente: ignora */ } }
+            };
 
                 if(filterQuery){
 
-                    f.icon.remove();
+                    safeIcon.remove();
 
                     for(let k of Object.keys(f)){
                         if(k==='status' && String(f[k]).toLowerCase().replace('unknown','desconhecido').match(filterQuery.toLowerCase())){
-                            f.icon.addToMap();
+                            safeIcon.addToMap();
                             return true;
                         }else if(String(f[k]).toLowerCase().match(filterQuery.toLowerCase())){
-                            f.icon.addToMap();
+                            safeIcon.addToMap();
                             return true;
                         }
                     }
@@ -466,16 +508,16 @@ export default {
 
                     for(let k of Object.keys(f.attributes)){
                         if(f.attributes[k] && f.attributes[k].toString().toLowerCase().match(filterQuery.toLowerCase())){
-                            f.icon.addToMap();
+                            safeIcon.addToMap();
                             return true;
                         }
                     }
 
                 }else if(context.state.applyFilters.showOnlyId!==0){
                     if(f.id === context.state.applyFilters.showOnlyId){
-                        f.icon.addToMap();
+                        safeIcon.addToMap();
                     }else{
-                        f.icon.remove();
+                        safeIcon.remove();
                     }
 
                 }else {
@@ -492,29 +534,29 @@ export default {
 
                         return c === f.category;
                     })) {
-                        f.icon.remove();
+                        safeIcon.remove();
                         visible = false;
                     } else {
-                        f.icon.addToMap();
+                        safeIcon.addToMap();
                         visible = true;
                     }
 
 
                     if (statusFilter === 'online' && f.status !== 'online') {
-                        f.icon.remove();
+                        safeIcon.remove();
                         visible = false;
                     } else if (statusFilter === 'offline' && f.status !== 'offline') {
-                        f.icon.remove();
+                        safeIcon.remove();
                         visible = false;
                     } else if (statusFilter === 'unknown' && f.status !== 'unknown') {
-                        f.icon.remove();
+                        safeIcon.remove();
                         visible = false;
                     }
 
                     if (motionFilter && visible) {
                         const pos = context.getters.getPosition(f.id);
                         if (pos && !pos.attributes.motion) {
-                            f.icon.remove();
+                            safeIcon.remove();
                         }
                     }
                 }

@@ -6,7 +6,6 @@ namespace App\Http\Controllers\Master;
 use App\Http\Controllers\Controller;
 use App\Models\DeviceReportings;
 use App\Models\UserLog;
-use App\Tarkan\traccarConnector;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -17,7 +16,7 @@ class RegisterReportingsController extends Controller{
 
     public function get(Request $request){
 
-        $traccar = new traccarConnector($request);
+        $traccar = self::traccar($request);
         $devices = $traccar->getDevices(["all"=>true])->json();
 
         $R = ['all'=>count($devices),'online'=>0,'offline'=>0,'unknown'=>0,'motion'=>0];

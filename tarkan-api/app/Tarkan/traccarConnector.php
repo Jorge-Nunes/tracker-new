@@ -8,217 +8,106 @@ use Illuminate\Support\Facades\Storage;
 
 class traccarConnector{
 
-    /**
-     * @var string|null
-     */
-    private $remoteAddr;
-    /**
-     * @var array|string|null
-     */
-    private $remoteHost;
-
-    /**
-     * @var string
-     */
-    private $globalConfig;
-    /**
-     * @var false
-     */
-    private $domainConfig;
-    /**
-     * @var false
-     */
-    private $ipConfig;
-
     private $config;
-
-    private $traccarHost;
 
     public function __construct($request){
 
-            if(env('TARKAN_HOST',false) && env('TARKAN_USERNAME',false) && env('TARKAN_PASSWORD',false)){
-                $this->config = [
-                    "host" => env('TARKAN_HOST',false) . "/api",
-                    "username" => env('TARKAN_USERNAME',false),
-                    "password" => env('TARKAN_PASSWORD',false)
-                ];
-            }else{
+        if(env('TARKAN_HOST',false) && env('TARKAN_USERNAME',false) && env('TARKAN_PASSWORD',false)){
+            $this->config = [
+                "host" => env('TARKAN_HOST',false) . "/api",
+                "username" => env('TARKAN_USERNAME',false),
+                "password" => env('TARKAN_PASSWORD',false)
+            ];
 
+            return;
+        }
 
-                $this->remoteAddr = $request->ip();
-                $this->remoteHost = $request->header('tarkan-domain');
-                $this->traccarHost = $request->header('traccar-host');
-                $this->globalConfig = false;
-                $this->domainConfig = false;
-                $this->ipConfig = false;
+        $remoteAddr = $request->ip();
+        $remoteHost = $request->header('tarkan-domain');
+        $traccarHost = $request->header('traccar-host');
 
-                $this->config = [
-                    "host" => ((isset($this->traccarHost)) ? $this->traccarHost : "https://" . $this->remoteHost) . "/api",
-                    "username" => "",
-                    "password" => ""
-                ];
+        $this->config = [
+            "host" => (isset($traccarHost) ? $traccarHost : "https://" . $remoteHost) . "/api",
+            "username" => "",
+            "password" => ""
+        ];
 
-                if (Storage::exists('assets/default/config.json')) {
-                    $this->globalConfig = json_decode(Storage::get('assets/default/config.json'), true);
+        $configPaths = [
+            'assets/default/config.json',
+            'assets/' . $remoteAddr . '/config.json',
+            'assets/' . $remoteAddr . '/' . $remoteHost . '/config.json',
+        ];
 
-                    if (isset($this->globalConfig['host'])) {
-                        $this->config['host'] = $this->globalConfig['host'];
-                    }
-                    if (isset($this->globalConfig['username'])) {
-                        $this->config['username'] = $this->globalConfig['username'];
-                    }
-                    if (isset($this->globalConfig['password'])) {
-                        $this->config['password'] = $this->globalConfig['password'];
-                    }
+        foreach ($configPaths as $path) {
+            if (Storage::exists($path)) {
+                $fileConfig = json_decode(Storage::get($path), true);
 
-                }
-
-                $domainPath = 'assets/' . $this->remoteAddr . '/' . $this->remoteHost . '/config.json';
-                $ipPath = 'assets/' . $this->remoteAddr . '/config.json';
-
-                if (Storage::exists($ipPath)) {
-                    $this->ipConfig = json_decode(Storage::get($ipPath), true);
-
-
-                    if (isset($this->ipConfig['host'])) {
-                        $this->config['host'] = $this->ipConfig['host'];
-                    }
-                    if (isset($this->ipConfig['username'])) {
-                        $this->config['username'] = $this->ipConfig['username'];
-                    }
-                    if (isset($this->ipConfig['password'])) {
-                        $this->config['password'] = $this->ipConfig['password'];
-                    }
-
-                }
-
-                if (Storage::exists($domainPath)) {
-                    $this->domainConfig = json_decode(Storage::get($domainPath), true);
-
-
-                    if (isset($this->domainConfig['host'])) {
-                        $this->config['host'] = $this->domainConfig['host'];
-                    }
-                    if (isset($this->domainConfig['username'])) {
-                        $this->config['username'] = $this->domainConfig['username'];
-                    }
-                    if (isset($this->domainConfig['password'])) {
-                        $this->config['password'] = $this->domainConfig['password'];
+                foreach (['host', 'username', 'password'] as $key) {
+                    if (isset($fileConfig[$key])) {
+                        $this->config[$key] = $fileConfig[$key];
                     }
                 }
             }
+        }
 
+    }
 
+    /**
+     * Executa um request HTTP contra o Traccar aplicando a estratégia de auth:
+     * headers customizados (cookie de sessão) > basic auth de params > basic auth da config.
+     */
+    private function request($method, $url, $body = null, $params = [], $timeout = null){
 
+        $request = Http::acceptJson();
+
+        if($timeout){
+            $request->timeout($timeout);
+        }
+
+        if(isset($params['h'])){
+            $request->withHeaders($params['h']);
+        }else{
+            if(isset($params['username']) && isset($params['password'])){
+                $request->withBasicAuth($params['username'], $params['password']);
+            }else{
+                $request->withBasicAuth(
+                    $this->config['username'],
+                    $this->config['password']
+                );
+            }
+        }
+
+        return $request->$method($url, $body);
     }
 
 
     public function putServer($body,$params=[]){
-
-        $request = Http::acceptJson();
-        $request->timeout(10);
-
-        $URL = $this->config['host']."/server";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->put($URL,$body);
+        return $this->request('put', $this->config['host']."/server", $body, $params, 10);
     }
 
     public function getServer($params=[]){
-
-        $request = Http::acceptJson();
-        $request->timeout(10);
-
-        $URL = $this->config['host']."/server";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/server", null, $params, 10);
     }
 
     public function getSession($params=[]){
-
-        $request = Http::acceptJson();
-        $request->timeout(10);
-
-        $URL = $this->config['host']."/session";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/session", null, $params, 10);
     }
 
     public function postSession($params=[]){
+        $request = Http::acceptJson()->asForm()->timeout(10);
 
-
-        $request = Http::acceptJson();
-        $request->asForm();
-        $request->timeout(10);
-
-
-        $URL = $this->config['host']."/session";
-
-        if(IsSet($params['h'])){
+        if(isset($params['h'])){
             $request->withHeaders($params['h']);
         }
 
-
-        return $request->post($URL,$params);
+        return $request->post($this->config['host']."/session", $params);
     }
 
     public function getDevices($params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/devices?all=true";
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/devices?all=true", null, $params);
     }
 
     public function getDevice($deviceId,$params=[]){
-        $request = Http::acceptJson();
-
         if(is_array($deviceId)){
             $_params = [];
             foreach($deviceId as $id){
@@ -230,25 +119,10 @@ class traccarConnector{
             $_params = "id=".$deviceId;
         }
 
-        $URL = $this->config['host']."/devices?".$_params;
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/devices?".$_params, null, $params);
     }
 
     public function getDeviceByImei($deviceId,$params=[]){
-        $request = Http::acceptJson();
-
         if(is_array($deviceId)){
             $_params = [];
             foreach($deviceId as $id){
@@ -260,614 +134,134 @@ class traccarConnector{
             $_params = "uniqueId=".$deviceId;
         }
 
-        $URL = $this->config['host']."/devices?".$_params;
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/devices?".$_params, null, $params);
     }
 
     public function createDevice($data,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/devices";
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->post($URL,$data);
+        return $this->request('post', $this->config['host']."/devices", $data, $params);
     }
 
     public function saveDevice($deviceId,$data,$params=[]){
-        $request = Http::acceptJson();
-
-
-        $URL = $this->config['host']."/devices/".$deviceId;
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-
-        return $request->put($URL,$data);
+        return $this->request('put', $this->config['host']."/devices/".$deviceId, $data, $params);
     }
-
 
     public function deleteDevice($deviceId,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/devices/".$deviceId;
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->delete($URL);
+        return $this->request('delete', $this->config['host']."/devices/".$deviceId, null, $params);
     }
-
 
     public function createUser($data,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/users";
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->post($URL,$data);
+        return $this->request('post', $this->config['host']."/users", $data, $params);
     }
 
-
     public function updateUser($userId,$data,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/users/".$userId;
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->put($URL,$data);
+        return $this->request('put', $this->config['host']."/users/".$userId, $data, $params);
     }
 
     public function deleteUser($userId,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/users/".$userId;
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->delete($URL);
+        return $this->request('delete', $this->config['host']."/users/".$userId, null, $params);
     }
 
     public function getUsers($id=false,$params=[]){
-
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/users".(($id!==false)?'/'.$id:'');
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/users".(($id!==false)?'/'.$id:''), null, $params);
     }
-
-
 
     public function getAllNotifications($params=[]){
-
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/notifications?all=true";
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/notifications?all=true", null, $params);
     }
 
-
     public function getNotifications($id=false,$params=[]){
-
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/notifications".(($id!==false)?'/'.$id:'');
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/notifications".(($id!==false)?'/'.$id:''), null, $params);
     }
 
     public function getAvailableCommands($deviceId,$params=[]){
-
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/commands/send?deviceId=".$deviceId;
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/commands/send?deviceId=".$deviceId, null, $params);
     }
 
     public function sendCommand($command,$params){
-
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/commands/send";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->post($URL,$command);
-
+        return $this->request('post', $this->config['host']."/commands/send", $command, $params);
     }
 
     public function sendStopEngine($deviceId,$params=[]){
-
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/commands/send";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->post($URL,[
+        return $this->request('post', $this->config['host']."/commands/send", [
             "id"=>0,
             "description"=>"Novo...",
             "deviceId"=>$deviceId,
             "type"=>"engineStop",
             "textChannel"=>false,
             "attributes"=> (object) null
-        ]);
-
+        ], $params);
     }
 
     public function sendResumeEngine($deviceId,$params=[]){
-
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/commands/send";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-
-        return $request->post($URL,[
+        return $this->request('post', $this->config['host']."/commands/send", [
             "id"=>0,
             "description"=>"Novo...",
             "deviceId"=>$deviceId,
             "type"=>"engineResume",
             "textChannel"=>false,
             "attributes"=> (object) null
-        ]);
-
+        ], $params);
     }
 
     public function createGeofence($data,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/geofences";
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->post($URL,$data);
+        return $this->request('post', $this->config['host']."/geofences", $data, $params);
     }
 
     public function getGeofences($geofenceId=false,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/geofences".(($geofenceId)?'/'.$geofenceId:'');
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/geofences".(($geofenceId)?'/'.$geofenceId:''), null, $params);
     }
 
     public function deleteGeofence($geofenceId=false,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/geofences".(($geofenceId)?'/'.$geofenceId:'');
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->delete($URL);
+        return $this->request('delete', $this->config['host']."/geofences".(($geofenceId)?'/'.$geofenceId:''), null, $params);
     }
 
     public function linkObjects($data,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/permissions";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-
-        return $request->post($URL,$data);
+        return $this->request('post', $this->config['host']."/permissions", $data, $params);
     }
 
-
-
     public function unlinkObjects($data,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/permissions";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-
-        return $request->delete($URL,$data);
+        return $this->request('delete', $this->config['host']."/permissions", $data, $params);
     }
 
     public function getPermissions($qs=[],$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/permissions".((count($qs))?'?'.http_build_query($qs):'');
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        $query = count($qs) ? '?'.http_build_query($qs) : '';
+        return $this->request('get', $this->config['host']."/permissions".$query, null, $params);
     }
 
     public function postPermissionsBulk($data,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/permissions/bulk";
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->post($URL,$data);
+        return $this->request('post', $this->config['host']."/permissions/bulk", $data, $params);
     }
 
     public function deletePermissionsBulk($data,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/permissions/bulk";
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->delete($URL,$data);
+        return $this->request('delete', $this->config['host']."/permissions/bulk", $data, $params);
     }
 
     public function getRoute($qs,$params=[]){
-        $request = Http::acceptJson();
-
-
-        $_params = $qs;
-
-        $URL = $this->config['host']."/reports/route?".$_params;
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/reports/route?".$qs, null, $params);
     }
 
-
-
     public function getSummary($qs,$params=[]){
-        $request = Http::acceptJson();
-
-
-        $_params = $qs;
-
-        $URL = $this->config['host']."/reports/summary?".$_params;
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/reports/summary?".$qs, null, $params);
     }
 
     public function getTrips($qs,$params=[]){
-        $request = Http::acceptJson();
-
-
-        $_params = $qs;
-
-        $URL = $this->config['host']."/reports/trips?".$_params;
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/reports/trips?".$qs, null, $params);
     }
-
 
     public function createDriver($data,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/drivers";
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->post($URL,$data);
+        return $this->request('post', $this->config['host']."/drivers", $data, $params);
     }
-
 
     public function getDrivers($params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/drivers";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/drivers", null, $params);
     }
 
-
-
-
-
     public function getComputed($params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/attributes/computed";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->get($URL);
+        return $this->request('get', $this->config['host']."/attributes/computed", null, $params);
     }
 
     public function createComputed($data,$params=[]){
-        $request = Http::acceptJson();
-
-        $URL = $this->config['host']."/attributes/computed";
-
-
-        if(IsSet($params['h'])){
-            $request->withHeaders($params['h']);
-        }else if(IsSet($params['username']) && IsSet($params['password'])){
-            $request->withBasicAuth($params['username'],$params['password']);
-        }else{
-            $request->withBasicAuth(
-                $this->config['username'],
-                $this->config['password']
-            );
-        }
-
-        return $request->post($URL,$data);
+        return $this->request('post', $this->config['host']."/attributes/computed", $data, $params);
     }
 
 }

@@ -17,9 +17,17 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'changeList']);
 
+// totalPages ANTES de page/list/watch: page.get() depende dele e o
+// watch(list) avalia o source imediatamente no setup — se estiver
+// declarado depois, quebra com ReferenceError (TDZ) e derruba todas
+// as views que usam <paginate> (lista de devices, users, etc).
+const totalPages = computed(() => Math.max(1, Math.ceil((props.items || []).length / props.perPage)));
+
 const page = computed({
     get() {
-        return props.modelValue;
+        // clamp: com múltiplos <paginate> compartilhando o mesmo modelValue
+        // (ex.: lista agrupada), a página pode exceder o total do grupo atual
+        return Math.min(props.modelValue, totalPages.value);
     },
     set(value) {
         emit('update:modelValue', value);
@@ -27,8 +35,9 @@ const page = computed({
 });
 
 const list = computed(() => {
+    const items = props.items || [];
     const currentInit = page.value * props.perPage - props.perPage;
-    const parsed = props.items.slice(currentInit, page.value * props.perPage);
+    const parsed = items.slice(currentInit, page.value * props.perPage);
     emit('changeList', parsed);
     return parsed;
 });
@@ -39,9 +48,7 @@ watch(list, (value) => {
     }
 });
 
-const totalPages = computed(() => Math.ceil(props.items.length / props.perPage));
 const nextPages = computed(() => {
-    console.log(`next`);
     let pages = [];
 
     if (page.value > 3) {

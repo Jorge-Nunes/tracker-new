@@ -3,16 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\UserLog;
-use App\Tarkan\traccarConnector;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Ramsey\Uuid\Uuid;
 
 class ComputedController extends Controller{
 
     public static function checkComputed(Request $request){
 
-        $traccar = new traccarConnector($request);
+        $traccar = self::traccar($request);
         $list = $traccar->getComputed();
 
         $names = [];

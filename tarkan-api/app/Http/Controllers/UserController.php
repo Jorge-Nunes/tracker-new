@@ -3,159 +3,99 @@
 namespace App\Http\Controllers;
 
 use App\Models\UserLog;
-use App\Tarkan\traccarConnector;
 use Illuminate\Http\Request;
-use Illuminate\Support\Str;
-use Ramsey\Uuid\Uuid;
 
 class UserController extends Controller{
 
     public function post(Request $request){
-        $clientCookie = $request->cookie('JSESSIONID');
-
-
-        $traccar = new traccarConnector($request);
-
-        $me = $traccar->getSession(['h' => ['Cookie' => $request->headers->get('cookie')]]);
-        if ($me->status() === 200) {
-
-
-
-            $data = $request->all();
-            if (IsSet($data['attributes']) && is_array($data['attributes']) && count($data['attributes'])==0) {
-                $data['attributes'] = (object)null;
-            }
-
-
-            $notifications = $traccar->getAllNotifications();
-
-
-
-
-            $user = $traccar->createUser($data, ['h' => ['Cookie' => $request->headers->get('cookie')]]);
-            $userData = $user->json();
-
-
-            foreach($notifications->json() as $n){
-                if(IsSet($n['attributes']['tarkan.autoadd']) && $n['attributes']['tarkan.autoadd']==true){
-                    $traccar->linkObjects(['userId'=>$userData['id'],'notificationId'=>$n['id']]);
-                }
-            }
-
-
-            UserLog::create([
-                'sesId' => $clientCookie,
-                'serverIp' => $request->ip(),
-                'serverHost' => $request->header('tarkan-domain'),
-                'username' => $me['email'],
-                'userIp' => $request->header('x-real-ip'),
-                'userAgent' => $request->userAgent(),
-                'log' => [
-                    'code' => 101,
-                    'object' => ['userId' => (isset($request->userId)) ? intval($request->userId) : 0],
-                    'status' => $user->status(),
-                    'data' => $request->all()
-                ]
-            ]);
-
-
-            return response($user->body(), $user->status());
-
-        } else {
+        $auth = self::authedTraccar($request);
+        if($auth === false){
             return response('User not authed', 503);
         }
+
+        [$traccar, $me] = $auth;
+
+        $data = $request->all();
+        if (isset($data['attributes']) && is_array($data['attributes']) && count($data['attributes'])==0) {
+            $data['attributes'] = (object)null;
+        }
+
+
+        $notifications = $traccar->getAllNotifications();
+
+        $user = $traccar->createUser($data, self::cookieAuth($request));
+        $userData = $user->json();
+
+
+        foreach($notifications->json() as $n){
+            if(isset($n['attributes']['tarkan.autoadd']) && $n['attributes']['tarkan.autoadd']==true){
+                $traccar->linkObjects(['userId'=>$userData['id'],'notificationId'=>$n['id']]);
+            }
+        }
+
+
+        UserLog::record($request, $me['email'], 101, $user->status(), [
+            'object' => ['userId' => (isset($request->userId)) ? intval($request->userId) : 0],
+            'data' => $request->all()
+        ]);
+
+        return response($user->body(), $user->status());
 
     }
 
     public function put(Request $request){
-        $clientCookie = $request->cookie('JSESSIONID');
-
-
-        $traccar = new traccarConnector($request);
-
-        $me = $traccar->getSession(['h' => ['Cookie' => $request->headers->get('cookie')]]);
-        if ($me->status() === 200) {
-
-            $old = $traccar->getUsers($request->userId);
-
-
-            $data = $request->all();
-            if (IsSet($data['attributes']) && is_array($data['attributes']) && count($data['attributes'])==0) {
-                $data['attributes'] = (object)null;
-            }
-
-            $user = $traccar->updateUser($request->userId, $data, ['h' => ['Cookie' => $request->headers->get('cookie')]]);
-
-
-            UserLog::create([
-                'sesId' => $clientCookie,
-                'serverIp' => $request->ip(),
-                'serverHost' => $request->header('tarkan-domain'),
-                'username' => $me['email'],
-                'userIp' => $request->header('x-real-ip'),
-                'userAgent' => $request->userAgent(),
-                'log' => [
-                    'code' => 105,
-                    'object' => ['userId' => (isset($request->userId)) ? intval($request->userId) : 0],
-                    'status' => $user->status(),
-                    'old' => $old->json(),
-                    'data' => $request->all()
-                ]
-            ]);
-
-
-            return response($user->body(), $user->status());
-
-        } else {
+        $auth = self::authedTraccar($request);
+        if($auth === false){
             return response('User not authed', 503);
         }
+
+        [$traccar, $me] = $auth;
+
+        $old = $traccar->getUsers($request->userId);
+
+        $data = $request->all();
+        if (isset($data['attributes']) && is_array($data['attributes']) && count($data['attributes'])==0) {
+            $data['attributes'] = (object)null;
+        }
+
+        $user = $traccar->updateUser($request->userId, $data, self::cookieAuth($request));
+
+        UserLog::record($request, $me['email'], 105, $user->status(), [
+            'object' => ['userId' => (isset($request->userId)) ? intval($request->userId) : 0],
+            'old' => $old->json(),
+            'data' => $request->all()
+        ]);
+
+        return response($user->body(), $user->status());
 
     }
 
 
     public function delete(Request $request){
-        $traccar = new traccarConnector($request);
-
-        $me = $traccar->getSession(['h'=>['Cookie'=>$request->headers->get('cookie')]]);
-        if($me->status()===200){
-            $getDevices = $traccar->getUsers($request->input('shareId'),['h'=>['Cookie'=>$request->headers->get('cookie')]]);
-            if($getDevices->status()===200){
-
-
-                $deleteUser = $traccar->deleteUser($request->shareId);
-
-                $clientCookie = $request->cookie('JSESSIONID');
-
-                UserLog::create([
-                    'sesId' => $clientCookie,
-                    'serverIp' => $request->ip(),
-                    'serverHost' => $request->header('tarkan-domain'),
-                    'username' => $me['email'],
-                    'userIp' => $request->header('x-real-ip'),
-                    'userAgent' => $request->userAgent(),
-                    'log' => [
-                        'code' => 102,
-                        'object' => ['userId' => (isset($request->userId)) ? intval($request->userId) : 0],
-                        'status' => $deleteUser->status(),
-                        'data' => $request->all()
-                    ]
-                ]);
-
-
-                if($deleteUser->status()===204){
-                    return response()->json(['success'=>true]);
-                }else{
-                    return response()->json($deleteUser->body(),401);
-                }
-
-            }else{
-                return response()->json([],404);
-            }
-        }else{
-            return response()->json([],503);
+        $auth = self::authedTraccar($request);
+        if($auth === false){
+            return response('User not authed', 503);
         }
+
+        [$traccar, $me] = $auth;
+
+        $getDevices = $traccar->getUsers($request->input('shareId'), self::cookieAuth($request));
+        if($getDevices->status()!==200){
+            return response()->json([],404);
+        }
+
+        $deleteUser = $traccar->deleteUser($request->shareId);
+
+        UserLog::record($request, $me['email'], 102, $deleteUser->status(), [
+            'object' => ['userId' => (isset($request->userId)) ? intval($request->userId) : 0]
+        ]);
+
+        if($deleteUser->status()===204){
+            return response()->json(['success'=>true]);
+        }
+
+        return response()->json($deleteUser->body(),401);
     }
 
 
 }
-

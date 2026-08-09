@@ -59,7 +59,7 @@
       style="height: calc(100vh - 300px); overflow: hidden; overflow-y: scroll"
     >
     <Paginate :items="store.state.calendars.calendarList" :per-page="15" v-model="currentPage">
-      <slot v-bind="{ item, index }">
+      <template #default="{ item, index }">
         <div
           class="itm"
           @click="selected = item.id"
@@ -115,7 +115,7 @@
           </div>
         </div>
 
-      </slot>
+      </template>
     </Paginate>
     </div>
   </el-dialog>
@@ -170,7 +170,7 @@ const doDelete = () => {
     return false;
   }
 
-  const calendar = store.getters["calendar/getCalendarById"](selected.value);
+  const calendar = store.getters["calendars/getCalendarById"](selected.value);
 
   ElMessageBox.confirm(KT("calendar.confirmDelete", calendar), KT("danger"), {
     confirmButtonText: KT("delete"),
@@ -180,7 +180,7 @@ const doDelete = () => {
   })
     .then(() => {
       store
-        .dispatch("calendar/deleteCalendar", selected.value)
+        .dispatch("calendars/deleteCalendar", selected.value)
         .then(() => {
           ElNotification({
             title: KT("success"),

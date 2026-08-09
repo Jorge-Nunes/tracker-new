@@ -6,7 +6,9 @@
       align-content: space-between;
     "
   >
-    <div style="width: 30%"></div>
+    <div style="width: 30%; font-size: 12px; font-weight: 800; padding-top: 8px">
+      {{ filteredDevices.length }} {{ KT('device.devices') }}
+    </div>
 
     <el-input
       v-model="query"
@@ -141,18 +143,12 @@
       </div>
     </div>
     <div
-      ref="realDevices"
-      @scroll="realScroll($event)"
       style="
         overflow-x: hidden;
         overflow-y: scroll;
         height: calc(100vh - 230px);
       "
     >
-      <div
-        class="fakeScroll"
-        :style="{ height: filteredDevices.length * 33 + 'px' }"
-      >
         <!-- Pagination -->
 
         <div v-for="group in groupedDevices" :key="group.id">
@@ -459,127 +455,10 @@
               </template>
             </paginate>
 
-            <!-- <div v-for="(device) in group.devices" :key="device.id" class="device" :class="{'isDisabled': device.disabled}" @click="markerClick(device.id)" @contextmenu.prevent="markerContext($event,device.id)" :set="position = store.getters['devices/getPosition'](device.id)">
-
-            <div class="name" style="flex: 1;">{{device.name}}</div>
-            <div class="name" style="width: 32px;overflow: hidden;text-align: center;font-size: 18px;box-sizing: border-box;overflow: hidden;">
-              <div
-                  @mouseleave="hideTip" @mouseenter.stop="showTip($event,device.disabled ? KT('disabled') : device.lastUpdate===null ? KT('new') : device.status === 'online' ? KT('online'): (device.status==='offline') ? KT('offline'):KT('unknown'))"
-                >
-                <span v-if="device.lastUpdate===null"><i  style="color: var(--el-color-info);" class="fas fa-question-circle"></i></span>
-                <span v-else-if="device.status==='online'" ><i style="color: var(--el-color-success);" class="fas fa-check-circle"></i></span>
-                <span v-else-if="device.status==='offline'" ><i style="color: var(--el-color-danger);" class="fas fa-exclamation-circle"></i></span>
-                <span v-else ><i class="fas fa-question-circle" style="color: var(--el-color-warning);"></i></span>
-              </div>
-
-            </div>
-            <div class="name" style="width: 90px;box-sizing: border-box;overflow: hidden;white-space: nowrap;text-align: center;" >{{getLastUpdated(device.lastUpdate,now)}}</div>
-            <div v-if="position" class="icons" style="width: 178px !important;flex: none;">
-
-
-                <div v-if="position.attributes.alarm"
-                    @mouseleave="hideTip" @mouseenter.stop="showAlarmTip($event,device.id)"
-                    :style="{color: 'var(--el-color-danger)'}"><i class="fas fa-exclamation-triangle"></i></div>
-
-                <div v-else
-                    @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('alarms.none'))" :style="{color: 'var(--el-color-info)'}"><i class="fas fa-exclamation-triangle"></i></div>
-
-
-              <div
-                  v-if="position.attributes['driverUniqueId']"
-                  @mouseleave="hideTip" @mouseenter.stop="showDriverTip($event,device.id)"
-                  :style="{color: 'var(--el-color-success)'}"><i class="far fa-id-card"></i></div>
-
-              <div
-                  v-else-if="position.attributes['isQrLocked'] && position.attributes['isQrLocked']==true"
-                  @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.noDriverLocked'))"
-                  :style="{color: 'var(--el-color-danger)'}"><i class="far fa-id-card"></i></div>
-
-              <div
-                  v-else
-                  @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.noDriver'))"
-                  :style="{color: 'var(--el-color-info)'}"><i class="far fa-id-card"></i></div>
-
-
-
-
-
-
-                <div
-                    @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.ignitionOn'))"
-                    v-if="position.attributes.ignition===true" :style="{color: 'var(--el-color-success)'}"><i class="fas fa-key"></i></div>
-
-                <div
-                    @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.ignitionOff'))"
-                    v-else-if="position.attributes.ignition===false" :style="{color: 'var(--el-color-danger)'}"><i class="fas fa-key"></i></div>
-
-                <div
-                    @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('unknown'))"
-                    v-else :style="{color: 'var(--el-color-info)'}"><i class="fas fa-key"></i></div>
-
-
-
-                <div
-                    @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.blocked'))"
-                    v-if="position.attributes.blocked===true" :style="{color: 'var(--el-color-danger)'}"><i class="fas fa-lock"></i></div>
-
-                <div
-                    @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.unblocked'))"
-                    v-else-if="position.attributes.blocked===false"  :style="{color: 'var(--el-color-success)'}"><i class="fas fa-lock-open"></i></div>
-
-                <div
-                    v-else
-                    @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('unknown'))"
-                    :style="{color: 'var(--el-color-info)'}"><i class="fas fa-lock-open"></i></div>
-
-              <template v-if="store.state.server.isPlus && store.getters.advancedPermissions(9)">
-                <div
-                    v-if="store.getters['geofences/isAnchored'](device.id)"
-                    @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.anchorEnabled'))"
-                    :style="{color: 'var(--el-color-warning)'}"><i class="fas fa-anchor"></i></div>
-
-                <div
-                    v-else
-                    @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.anchorDisabled'))"
-                    :style="{color: 'var(--el-color-info)'}"><i class="fas fa-anchor"></i></div>
-              </template>
-
-
-
-
-              <div
-                  v-if="position.attributes.motion"
-                  @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.moving'))"
-                  :style="{color: 'var(--el-color-primary)'}"><i class="fas fa-angle-double-right"></i></div>
-
-              <div
-                  v-else-if="position.attributes.stoppedTime"
-                  @mouseleave="hideTip" @mouseenter.stop="showStopped($event,device.id)"
-                  :style="{color: 'var(--el-color-info)'}"><i class="fas fa-angle-double-right"></i></div>
-              <div
-                  v-else
-                  @mouseleave="hideTip" @mouseenter.stop="showTip($event,KT('device.stoped'))"
-                  :style="{color: 'var(--el-color-info)'}"><i class="fas fa-angle-double-right"></i></div>
-
-
-
-
-            </div>
-            <div v-else class="icons" style="flex: none;width: 178px !important;">
-              <div style="color: var(--el-text-color-disabled-base)">
-                <i>
-                  <svg xmlns="http://www.w3.org/2000/svg" style="opacity: 0.3"  height="15px" viewBox="0 0 640 512">
-                    <path d="M154 95.42C187.3 38.35 249.2 0 320 0C426 0 512 85.96 512 192C512 230.7 489 282.8 459 334.5L630.8 469.1C641.2 477.3 643.1 492.4 634.9 502.8C626.7 513.2 611.6 515.1 601.2 506.9L9.196 42.89C-1.236 34.71-3.065 19.63 5.112 9.196C13.29-1.236 28.37-3.065 38.81 5.112L154 95.42zM257.8 176.8L349.6 248.7C370.1 238 384 216.7 384 192C384 156.7 355.3 128 320 128C289.9 128 264.7 148.8 257.8 176.8zM296.3 499.2C245.9 436.2 132.3 285.2 128.1 196.9L406.2 416.1C382.7 449.5 359.9 478.9 343.7 499.2C331.4 514.5 308.6 514.5 296.3 499.2V499.2z"/>
-                  </svg>
-                </i> <span>{{KT('device.noPosition')}}</span>
-              </div>
-            </div>
-          </div> -->
           </div>
         </div>
       </div>
     </div>
-  </div>
 </template>
 
 <script setup>
@@ -653,10 +532,6 @@ const showDriverTip = ($event, deviceId) => {
   }
 };
 
-const realDevices = ref(null);
-const offsetDevices = ref(0);
-const maxDevices = ref(0);
-
 const validStates = [
   "motion",
   "anchor",
@@ -682,10 +557,6 @@ const setSortingByState = () => {
 };
 
 onMounted(() => {
-  const real = realDevices.value;
-
-  maxDevices.value = Math.floor(real.clientHeight / 33) + 3;
-  offsetDevices.value = Math.floor(real.scrollTop / 33);
   setInterval(() => {
     now.value = new Date();
   }, 3000);
@@ -711,12 +582,15 @@ watch(
   }
 );
 
-const realScroll = (event) => {
-  const real = event.target;
-
-  maxDevices.value = Math.floor(real.clientHeight / 33) + 3;
-  offsetDevices.value = Math.floor(real.scrollTop / 33);
-};
+watch(
+  () => filteredDevices.value.length,
+  () => {
+    const totalPages = Math.ceil(filteredDevices.value.length / 15);
+    if (currentPage.value > totalPages) {
+      currentPage.value = 1;
+    }
+  }
+);
 
 const getLastUpdated = (t, tt) => {
   tt = new Date();
@@ -916,13 +790,6 @@ onUnmounted(() => {
   clearTimeout(recalcTimer);
 });
 
-const chunkedDevices = computed(() => {
-  // janela deslizante (virtualização): renderiza só o trecho visível + buffer
-  const start = Math.max(0, offsetDevices.value);
-  const end = start + maxDevices.value + 3;
-  return filteredDevices.value.slice(start, end);
-});
-
 const groupedDevices = computed(() => {
   let showGroups = store.getters["mapPref"]("groups");
 
@@ -946,7 +813,7 @@ const groupedDevices = computed(() => {
 
     let list = [];
 
-    list.push({ id: 0, name: "Sem Grupo", devices: tmp[0], open: true });
+    list.push({ id: 0, name: "Sem Grupo", devices: tmp[0] || [], open: true });
     groups.forEach((g) => {
       if (tmp[g.id] && tmp[g.id].length > 0) {
         list.push({ id: g.id, name: g.name, devices: tmp[g.id], open: false });
@@ -955,7 +822,7 @@ const groupedDevices = computed(() => {
 
     return list;
   } else {
-    return [{ id: -1, name: "", devices: chunkedDevices.value, open: true }];
+    return [{ id: -1, name: "", devices: filteredDevices.value, open: true }];
   }
 });
 </script>

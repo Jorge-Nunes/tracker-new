@@ -275,6 +275,7 @@ const messages = {
             confirmDelete: 'You are deleting a notification of "%type%", do you want to continue?',
             saving: 'Saving your notification...',
             saved: 'Your notification has been successfully saved.',
+            channelRequired: 'Select at least one notification channel.',
             linkToDevice: 'Assigning to device "%name%"',
             linkToGroup: 'Assigning to group "%name%"',
             linkToUser: 'Assigning user "%name%"',

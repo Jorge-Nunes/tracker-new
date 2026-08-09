@@ -465,15 +465,32 @@ const markerOver = (e)=>{
 }
 
 const flyToDevice = (device) =>{
-  const position = store.getters["devices/getPosition"](device.id);
+  if(!device || !map.value || !map.value.leafletObject){ return; }
   const zoom = (store.state.server.serverInfo.attributes && store.state.server.serverInfo.attributes['web.selectZoom'])?store.state.server.serverInfo.attributes['web.selectZoom']:16;
-  if(position){
+
+  const doFly = (position) => {
+    if(!position || !map.value || !map.value.leafletObject){ return; }
     setTimeout(()=> {
-      //map.value.leafletObject.setZoom(17)
       setTimeout(() => {
-        map.value.leafletObject.flyTo([position.latitude, position.longitude],zoom,{animate: true,duration: 1.5});
+        if(map.value && map.value.leafletObject){
+          map.value.leafletObject.flyTo([position.latitude, position.longitude],zoom,{animate: true,duration: 1.5});
+        }
       }, 100);
     },100);
+  };
+
+  const position = store.getters["devices/getPosition"](device.id);
+  if(position){ doFly(position); return; }
+
+  // fallback: posicao ainda nao carregada no store (ex.: device recem-chegado).
+  // Busca a ultima posicao do device no servidor e voa quando chegar.
+  if(device.positionId && window.$traccar && window.$traccar.getPositions){
+    window.$traccar.getPositions([device.positionId]).then((list)=>{
+      if(list && list.length){
+        const p = list.find((x)=> x.id === device.positionId) || list[0];
+        doFly(p);
+      }
+    }).catch(()=>{});
   }
 }
 
@@ -481,16 +498,23 @@ const flyToDevice = (device) =>{
 
 const markerClick = (e) =>{
 
-  console.log(e);
-
   const deviceId = (e.target)?e.target.options.id:e;
   router.push('/devices/'+deviceId);
   const device = store.getters['devices/getDevice'](deviceId);
+  if(!device){ return; }
 
   store.commit("devices/setFollow", deviceId);
-  //device.icon.remove();
-  device.icon.bringToFront();
 
+  // bringToFront: markers dentro do markerClusterGroup nao possuem _order no
+  // renderer canvas (Leaflet 1.0.3 via CDN) e o metodo lanca TypeError.
+  // So chamamos quando o marker esta renderizado direto no canvas (_order).
+  try {
+    if(device.icon && device.icon.bringToFront && device.icon._order){
+      device.icon.bringToFront();
+    }
+  } catch(err){
+    console.error("bringToFront falhou (device "+deviceId+"):", err);
+  }
 
   flyToDevice(device);
 }

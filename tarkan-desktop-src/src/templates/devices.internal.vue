@@ -216,7 +216,7 @@
         /* IFTRUE_myFlag */
       <div style="flex: 1;border-right: var(--el-border-color-light) 1px dotted;justify-content: center;align-content: center;display: flex;align-items: center;">
           <div  class="carImage" style="background-image: url('/img/upload.png');border: var(--el-border-color-light) 1px solid;background-size: cover;background-position: center;width: 170px;height: 140px;border-radius: 5px; vertical-align: middle;">
-            <div :style="{'background-image': 'url(/tarkan/assets/images/'+device.id+'.jpg'+((uncache!==0)?'?uncache='+uncache:'')+')'}" style="background-size: cover;background-position: center;width: 170px;height: 140px;border-radius: 5px; vertical-align: middle;">
+            <div :style="photoUrl ? {'background-image': 'url('+photoUrl+')'} : {}" style="background-size: cover;background-position: center;width: 170px;height: 140px;border-radius: 5px; vertical-align: middle;">
               <div v-if="store.getters.advancedPermissions(14)" @click="changeImage()" id="changeImage">{{KT('changeImage')}}</div>
               <div v-if="uploading" id="uploading">{{KT('uploadingImage')}}</div>
             </div>
@@ -917,6 +917,23 @@ watch(()=> route.query.edit,(a)=>{
 const device = computed(()=> {
   return store.getters['devices/getDevice'](parseInt(route.params.deviceId));
 });
+
+// Foto do dispositivo: so renderiza quando a imagem existe de fato, evitando o
+// 404 de /tarkan/assets/images/{id}.jpg no console para devices sem foto.
+const photoUrl = ref(null);
+let photoReq = 0;
+const checkPhoto = () => {
+  const req = ++photoReq;
+  const d = device.value;
+  if (!d) { photoUrl.value = null; return; }
+  const src = '/tarkan/assets/images/' + d.id + '.jpg' + ((uncache.value !== 0) ? '?uncache=' + uncache.value : '');
+  fetch(src, { method: 'HEAD' }).then(r => {
+    if (req === photoReq) photoUrl.value = r.ok ? src : null;
+  }).catch(() => {
+    if (req === photoReq) photoUrl.value = null;
+  });
+};
+watch(() => [device.value && device.value.id, uncache.value], checkPhoto, { immediate: true });
 
 
 const openEdit = ()=>{

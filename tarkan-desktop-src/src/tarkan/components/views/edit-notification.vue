@@ -398,14 +398,22 @@ const doCancel = ()=>{
 
 const doSave = async ()=>{
 
+  // O select de canais é multiple; se o usuário nunca o tocou, o v-model
+  // permanece na string vazia "" (default) e .join() lançaria TypeError,
+  // abortando o save silenciosamente (nenhum POST é enviado). Normaliza e
+  // exige ao menos um canal — sem canal a notificação não teria efeito.
+  const channels = (Array.isArray(formData.value.notificators) ? formData.value.notificators : []).filter(c => c !== '');
+  if (channels.length === 0) {
+    ElMessage.error(KT('notification.channelRequired'));
+    return;
+  }
+  formData.value.notificators = channels.join(",");
 
   ElNotification({
     title: KT('info'),
     message: KT('notification.saving'),
     type: 'info',
   });
-
-  formData.value.notificators = formData.value.notificators.join(",");
   if(formData.value.attributes['alarms']) {
     formData.value.attributes['alarms'] = formData.value.attributes['alarms'].join(",");
   }

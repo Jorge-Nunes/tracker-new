@@ -4,6 +4,12 @@ import axios from 'axios';
 
 import Emitter from './Emitter';
 
+const qs = (params, encode = false) => {
+    if (!params) return '';
+
+    return '?' + Object.keys(params).map(k => k + '=' + (encode ? encodeURIComponent(params[k]) : params[k])).join('&');
+};
+
 
 
 let connector = function(server,vue){
@@ -132,15 +138,7 @@ connector.prototype.deleteSession = function(){
 }
 
 connector.prototype.getDevices = function(params){
-
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+params[k]);
-        }
-    }
-
-    return this.axios.get('/devices'+((params)?'?'+tmp.join("&"):''));
+    return this.axios.get('/devices'+qs(params));
 }
 
 connector.prototype.createDevice = function(params){
@@ -162,15 +160,7 @@ connector.prototype.deleteDevice = function(id){
 }
 
 connector.prototype.getGroups = function(params){
-
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+params[k]);
-        }
-    }
-
-    return this.axios.get('/groups'+((params)?'?'+tmp.join("&"):''));
+    return this.axios.get('/groups'+qs(params));
 }
 
 connector.prototype.createGroup = function(params){
@@ -186,14 +176,7 @@ connector.prototype.deleteGroup = function(id){
 }
 
 connector.prototype.getGeofences = function(params){
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+params[k]);
-        }
-    }
-
-    return this.axios.get('/geofences'+((params)?'?'+tmp.join("&"):''));
+    return this.axios.get('/geofences'+qs(params));
 }
 
 connector.prototype.createGeofence = function(params){
@@ -218,15 +201,7 @@ connector.prototype.saveServer = function(params){
 
 
 connector.prototype.getUsers = function(params){
-
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+params[k]);
-        }
-    }
-
-    return this.axios.get('/users'+((params)?'?'+tmp.join("&"):''));
+    return this.axios.get('/users'+qs(params));
 }
 
 connector.prototype.updateUser = function(id,params){
@@ -303,28 +278,12 @@ connector.prototype.deleteSavedCommand = function(id){
 }
 
 connector.prototype.getSavedCommands = function(params){
-
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+params[k]);
-        }
-    }
-
-    return this.axios.get("/commands"+((params)?'?'+tmp.join("&"):''));
+    return this.axios.get("/commands"+qs(params));
 }
 
 
 connector.prototype.getNotifications = function(params){
-
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+params[k]);
-        }
-    }
-
-    return this.axios.get("/notifications"+((params)?'?'+tmp.join("&"):''));
+    return this.axios.get("/notifications"+qs(params));
 }
 
 connector.prototype.deleteNotification = function(id){
@@ -349,15 +308,7 @@ connector.prototype.getNotificationTypes = function(){
 
 
 connector.prototype.getDrivers = function(params){
-
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+params[k]);
-        }
-    }
-
-    return this.axios.get("/drivers"+((params)?'?'+tmp.join("&"):''));
+    return this.axios.get("/drivers"+qs(params));
 }
 
 
@@ -390,15 +341,7 @@ connector.prototype.unlinkObjects = function(params){
 }
 
 connector.prototype.getPermissions = function(params){
-
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+encodeURIComponent(params[k]));
-        }
-    }
-
-    return this.axios.get('/permissions'+((tmp.length)?'?'+tmp.join("&"):''));
+    return this.axios.get('/permissions'+qs(params, true));
 }
 
 connector.prototype.linkObjectsBulk = function(params){
@@ -439,15 +382,7 @@ connector.prototype.attributeTest = function(id,params){
 
 
 connector.prototype.getComputedAttributes = function(params){
-
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+params[k]);
-        }
-    }
-
-    return this.axios.get("/attributes/computed"+((params)?'?'+tmp.join("&"):''));
+    return this.axios.get("/attributes/computed"+qs(params));
 }
 
 connector.prototype.createComputedAttribute = function(params){
@@ -463,15 +398,7 @@ connector.prototype.deleteComputedAttribute = function(id){
 }
 
 connector.prototype.getCalendars = function(params){
-
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+params[k]);
-        }
-    }
-
-    return this.axios.get("/calendars"+((params)?'?'+tmp.join("&"):''));
+    return this.axios.get("/calendars"+qs(params));
 }
 
 
@@ -488,15 +415,7 @@ connector.prototype.deleteCalendar = function(id){
 }
 
 connector.prototype.getMaintenance = function(params){
-
-    let tmp = [];
-    if(params){
-        for(const k of Object.keys(params)){
-            tmp.push(k+'='+params[k]);
-        }
-    }
-
-    return this.axios.get("/maintenance"+((params)?'?'+tmp.join("&"):''))
+    return this.axios.get("/maintenance"+qs(params));
 }
 
 connector.prototype.createMaintenance = function(params){
@@ -512,20 +431,11 @@ connector.prototype.deleteMaintenance = function(id){
 }
 
 
-connector.prototype.getReportSummary = function(deviceIds,groupIds,from,to,exp=false){
+connector.prototype.getReport = function(endpoint,deviceIds,groupIds,from,to,exp=false){
 
     let objects = [];
-    if(deviceIds.length>0){
-        for(var d in deviceIds){
-            objects.push("deviceId="+deviceIds[d]);
-        }
-    }
-
-    if(groupIds.length>0){
-        for(var g in groupIds){
-            objects.push("groupId="+groupIds[g]);
-        }
-    }
+    deviceIds.forEach(d => objects.push("deviceId="+d));
+    groupIds.forEach(g => objects.push("groupId="+g));
 
     let conf = {};
         if(exp){
@@ -537,36 +447,15 @@ connector.prototype.getReportSummary = function(deviceIds,groupIds,from,to,exp=f
             }
         }
 
-    return this.axios.get("/reports/summary?"+objects.join("&")+"&type=allEvents&from="+from+"&to="+to+"&daily=false",conf);
+    return this.axios.get("/reports/"+endpoint+"?"+objects.join("&")+"&type=allEvents&from="+from+"&to="+to+"&daily=false",conf);
+}
+
+connector.prototype.getReportSummary = function(deviceIds,groupIds,from,to,exp=false){
+    return this.getReport('summary', deviceIds, groupIds, from, to, exp);
 }
 
 connector.prototype.getReportTravels = function(deviceIds,groupIds,from,to,exp=false){
-
-
-    let objects = [];
-    if(deviceIds.length>0){
-        for(var d in deviceIds){
-            objects.push("deviceId="+deviceIds[d]);
-        }
-    }
-
-    if(groupIds.length>0){
-        for(var g in groupIds){
-            objects.push("groupId="+groupIds[g]);
-        }
-    }
-
-    let conf = {};
-    if(exp){
-        conf = {
-            responseType: 'blob',
-            headers: {
-                Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            }
-        }
-    }
-
-    return this.axios.get("/reports/trips?"+objects.join("&")+"&type=allEvents&from="+from+"&to="+to+"&daily=false",conf);
+    return this.getReport('trips', deviceIds, groupIds, from, to, exp);
 }
 
 connector.prototype.testNotification = function(){
@@ -578,62 +467,12 @@ connector.prototype.restartServer = function(){
 }
 
 connector.prototype.getReportStops = function(deviceIds,groupIds,from,to,exp=false){
-
-
-    let objects = [];
-    if(deviceIds.length>0){
-        for(var d in deviceIds){
-            objects.push("deviceId="+deviceIds[d]);
-        }
-    }
-
-    if(groupIds.length>0){
-        for(var g in groupIds){
-            objects.push("groupId="+groupIds[g]);
-        }
-    }
-
-    let conf = {};
-    if(exp){
-        conf = {
-            responseType: 'blob',
-            headers: {
-                Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            }
-        }
-    }
-
-    return this.axios.get("/reports/stops?"+objects.join("&")+"&type=allEvents&from="+from+"&to="+to+"&daily=false",conf);
+    return this.getReport('stops', deviceIds, groupIds, from, to, exp);
 }
 
 
 connector.prototype.getReportEvents = function(deviceIds,groupIds,from,to,exp=false){
-
-
-    let objects = [];
-    if(deviceIds.length>0){
-        for(var d in deviceIds){
-            objects.push("deviceId="+deviceIds[d]);
-        }
-    }
-
-    if(groupIds.length>0){
-        for(var g in groupIds){
-            objects.push("groupId="+groupIds[g]);
-        }
-    }
-
-    let conf = {};
-    if(exp){
-        conf = {
-            responseType: 'blob',
-            headers: {
-                Accept: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-            }
-        }
-    }
-
-    return this.axios.get("/reports/events?"+objects.join("&")+"&type=allEvents&from="+from+"&to="+to+"&daily=false",conf);
+    return this.getReport('events', deviceIds, groupIds, from, to, exp);
 }
 
 export default connector;
